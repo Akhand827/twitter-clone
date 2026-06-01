@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import LoadingSpinner from "./LoadingSpinner.jsx";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatPostDate } from "../../utils/date/index.js";
 
 const Post = ({ post }) => {
   const [comment, setComment] = useState("");
@@ -16,6 +17,11 @@ const Post = ({ post }) => {
     queryKey: ["authUser"],
   });
   const queryClient = useQueryClient(); // to invalidate the posts query after deleting a post
+
+  const postOwner = post.user;
+  const isLiked = post.likes.includes(authUser._id);
+  const isMyPost = authUser._id === post.user._id;
+  const formattedDate = formatPostDate(post.createdAt);
 
   const { mutate: deletePost, isPending: isDeleting } = useMutation({
     mutationFn: async () => {
@@ -80,21 +86,49 @@ const Post = ({ post }) => {
     },
   });
 
-  const postOwner = post.user;
-  const isLiked = post.likes.includes(authUser._id);
-
-  const isMyPost = authUser._id === post.user._id;
-
-  const formattedDate = "1h";
-
-  const isCommenting = true;
+  const { mutate: commentPost, isPending: isCommenting } = useMutation({
+    mutationFn: async () => {
+      try {
+        const res = await fetch(`/api/posts/comment/${post._id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: comment }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(
+            data.error || "Something went wrong while posting the comment",
+          );
+        }
+        return data;
+      } catch (error) {
+        throw new Error(error);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Comment posted successfully");
+      setComment("");
+      //invalidate the posts query to refetch the posts after commenting
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+    //update the comments of the post in the cache
+    onError: (error) => {
+      toast.error(
+        error.message || "Something went wrong while posting the comment",
+      );
+    },
+  });
 
   const handleDeletePost = () => {
     deletePost();
   };
 
   const handlePostComment = (e) => {
-    e.preventDefault();
+    e.preventDefault(); //what this does this do is it prevents the default form submission behavior which would cause a page reload. Since we're using React and want to handle the comment submission asynchronously without reloading the page, we call e.preventDefault() to stop the form from submitting in the traditional way. After that, we can call the commentPost mutation to post the comment without refreshing the page.
+    if (isCommenting) return; // prevent multiple comment requests
+    commentPost();
   };
 
   const handleLikePost = () => {
