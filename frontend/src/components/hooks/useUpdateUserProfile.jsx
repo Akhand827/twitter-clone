@@ -15,7 +15,10 @@ const useUpdateUserProfile = () => {
             },
             body: JSON.stringify(formData),
           });
+
+          console.log("Response received", res);
           const data = await res.json();
+          console.log("response data", data);
           if (!res.ok) {
             throw new Error(data.error || "Something went wrong");
           }
@@ -24,12 +27,24 @@ const useUpdateUserProfile = () => {
           throw new Error(error.message);
         }
       },
-      onSuccess: () => {
+      onSuccess: async (updatedUser) => {
+        console.log("Updated user profile:", updatedUser);
+
+        queryClient.setQueryData(["authUser"], updatedUser);
+
+        queryClient.setQueryData(
+          ["userProfile", updatedUser.username],
+          updatedUser,
+        );
+
+        await queryClient.invalidateQueries({
+          queryKey: ["authUser"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["userProfile"],
+        });
+
         toast.success("Profile updated successfully");
-        Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["authUser"] }),
-          queryClient.invalidateQueries({ queryKey: ["userProfile"] }),
-        ]);
       },
       onError: (error) => {
         toast.error(error.message);

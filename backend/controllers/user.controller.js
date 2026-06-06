@@ -1,4 +1,4 @@
-import User from "../models/User.model.js";
+import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
 import bcrypt from "bcryptjs";
 import { v2 as cloudinary } from "cloudinary";
@@ -133,7 +133,9 @@ export const updateUser = async (req, res) => {
           user.profileImg.split("/").pop().split(".")[0],
         );
       }
+      console.log("Before profile upload");
       const uploadedResponse = await cloudinary.uploader.upload(profileImg);
+      console.log("After profile upload");
       profileImg = uploadedResponse.secure_url;
     }
     if (coverImg) {
@@ -142,8 +144,9 @@ export const updateUser = async (req, res) => {
           user.coverImg.split("/").pop().split(".")[0],
         );
       }
-
+      console.log("Before cover upload");
       const uploadedResponse = await cloudinary.uploader.upload(coverImg);
+      console.log("After cover upload");
       coverImg = uploadedResponse.secure_url;
     }
 
@@ -155,7 +158,12 @@ export const updateUser = async (req, res) => {
     user.profileImg = profileImg || user.profileImg;
     user.coverImg = coverImg || user.coverImg;
 
+    console.log("Before Save");
     user = await user.save();
+    console.log("After Save");
+    user.password = null;
+    console.log("Sending response");
+    res.status(200).json(user);
   } catch (error) {
     console.log("Error updating user profile:", error.message);
     res.status(500).json({ error: error.message });
